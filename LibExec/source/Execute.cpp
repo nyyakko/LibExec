@@ -54,8 +54,6 @@ liberror::Result<std::pair<std::string, std::string>> libexec::execute(std::stri
                 TRY(executed_command(stdoutPipe, stderrPipe, command, arguments));
             }
 
-            waitpid(innerForkId, nullptr, 0);
-
             std::exit(EXIT_SUCCESS);
         }
         else
