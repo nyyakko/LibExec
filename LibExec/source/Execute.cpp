@@ -83,7 +83,7 @@ liberror::Result<std::pair<std::string, std::string>> libexec::execute(std::stri
             {
                 if (pfd.revents & POLLIN)
                 {
-                    std::array<char, 256> buffer {};
+                    std::array<char, 1024> buffer {};
                     auto count = read(pfd.fd, buffer.data(), buffer.size());
 
                     if (pfd.fd == stdoutPipe[0])
