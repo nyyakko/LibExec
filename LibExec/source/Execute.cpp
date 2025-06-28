@@ -10,7 +10,7 @@
 #include <fstream>
 #include <unistd.h>
 
-liberror::Result<void> executed_command(std::array<int, 2> const& outPipe, std::array<int, 2> const& errPipe, std::string& command, std::vector<std::string>& arguments)
+liberror::Result<void> executed_command(std::array<int, 2> const& outPipe, std::array<int, 2> const& errPipe, std::string command, std::vector<std::string> arguments)
 {
     dup2(outPipe.at(1), STDOUT_FILENO);
     std::ranges::for_each(outPipe, close);
@@ -35,7 +35,7 @@ liberror::Result<void> executed_command(std::array<int, 2> const& outPipe, std::
     return liberror::make_error(strerror(errno));
 }
 
-liberror::Result<std::pair<std::string, std::string>> libexec::execute(std::string command, std::vector<std::string> arguments, Mode mode)
+liberror::Result<std::pair<std::string, std::string>> libexec::execute(std::string const& command, std::vector<std::string> const& arguments, Mode mode)
 {
     std::array<int, 2> outPipe {};
     pipe(outPipe.data());
@@ -105,20 +105,32 @@ liberror::Result<std::pair<std::string, std::string>> libexec::execute(std::stri
     close(outPipe.at(0));
     close(errPipe.at(0));
 
-    if (mode == Mode::ATTACHED)
-    {
-        waitpid(forkID, nullptr, 0);
-    }
+    waitpid(forkID, nullptr, 0);
 
     return std::make_pair(out, err);
 }
 
-liberror::Result<std::pair<std::string, std::string>> libexec::execute(std::string command, Mode mode)
+liberror::Result<void> libexec::execute(std::string const& command, std::vector<std::string> const& arguments, std::filesystem::path const& output, Mode mode)
+{
+    auto [out, err] = TRY(execute(command, arguments, mode));
+
+    if (!err.empty())
+    {
+        return liberror::make_error(err);
+    }
+
+    std::ofstream stream(output);
+    stream << out;
+
+    return {};
+}
+
+liberror::Result<std::pair<std::string, std::string>> libexec::execute(std::string const& command, Mode mode)
 {
     return execute(command, std::vector<std::string>{}, mode);
 }
 
-liberror::Result<void> libexec::execute(std::string command, std::filesystem::path output, Mode mode)
+liberror::Result<void> libexec::execute(std::string const& command, std::filesystem::path const& output, Mode mode)
 {
     auto [out, err] = TRY(execute(command, mode));
 
@@ -133,17 +145,3 @@ liberror::Result<void> libexec::execute(std::string command, std::filesystem::pa
     return {};
 }
 
-liberror::Result<void> libexec::execute(std::string command, std::vector<std::string> arguments, std::filesystem::path output, Mode mode)
-{
-    auto [out, err] = TRY(execute(command, arguments, mode));
-
-    if (!err.empty())
-    {
-        return liberror::make_error(err);
-    }
-
-    std::ofstream stream(output);
-    stream << out;
-
-    return {};
-}

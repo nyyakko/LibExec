@@ -14,10 +14,9 @@ enum class Mode : char
     DETACHED
 };
 
-liberror::Result<std::pair<std::string, std::string>> execute(std::string command, Mode mode = Mode::ATTACHED);
-liberror::Result<std::pair<std::string, std::string>> execute(std::string command, std::vector<std::string> arguments, Mode mode = Mode::ATTACHED);
-
-liberror::Result<void> execute(std::string command, std::filesystem::path output, Mode mode = Mode::ATTACHED);
-liberror::Result<void> execute(std::string command, std::vector<std::string> arguments, std::filesystem::path output, Mode mode = Mode::ATTACHED);
+liberror::Result<std::pair<std::string, std::string>> execute(std::string const& command, Mode mode = Mode::ATTACHED);
+liberror::Result<void> execute(std::string const& command, std::filesystem::path const& output, Mode mode = Mode::ATTACHED);
+liberror::Result<std::pair<std::string, std::string>> execute(std::string const& command, std::vector<std::string> const& arguments, Mode mode = Mode::ATTACHED);
+liberror::Result<void> execute(std::string const& command, std::vector<std::string> const& arguments, std::filesystem::path const& output, Mode mode = Mode::ATTACHED);
 
 }
