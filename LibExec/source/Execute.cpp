@@ -43,17 +43,18 @@ liberror::Result<std::pair<std::string, std::string>> libexec::execute(std::stri
     std::array<int, 2> errPipe {};
     pipe(errPipe.data());
 
-    auto forkID = fork();
-    if (forkID == 0)
+    auto forkId = fork();
+    if (forkId == 0)
     {
         if (mode == Mode::DETACHED)
         {
             setsid();
-            auto subForkID = fork();
-            if (subForkID == 0)
+            auto innerForkId = fork();
+            if (innerForkId == 0)
             {
                 TRY(executed_command(outPipe, errPipe, command, arguments));
             }
+            waitpid(innerForkId, nullptr, 0);
             std::exit(EXIT_SUCCESS);
         }
         else
@@ -105,7 +106,7 @@ liberror::Result<std::pair<std::string, std::string>> libexec::execute(std::stri
     close(outPipe.at(0));
     close(errPipe.at(0));
 
-    waitpid(forkID, nullptr, 0);
+    waitpid(forkId, nullptr, 0);
 
     return std::make_pair(out, err);
 }
