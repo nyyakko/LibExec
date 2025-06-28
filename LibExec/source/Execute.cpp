@@ -110,7 +110,6 @@ liberror::Result<std::pair<std::string, std::string>> libexec::execute(std::stri
     waitpid(forkId, nullptr, 0);
 
     return std::pair { out, err };
-
 }
 
 liberror::Result<std::pair<std::string, std::string>> libexec::execute(std::string const& command, Mode mode)
