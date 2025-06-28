@@ -7,6 +7,8 @@
 #include <sys/wait.h>
 
 #include <algorithm>
+#include <fstream>
+#include <unistd.h>
 
 liberror::Result<void> executed_command(std::array<int, 2> const& outPipe, std::array<int, 2> const& errPipe, std::string& command, std::vector<std::string>& arguments)
 {
@@ -33,7 +35,7 @@ liberror::Result<void> executed_command(std::array<int, 2> const& outPipe, std::
     return liberror::make_error(strerror(errno));
 }
 
-liberror::Result<std::pair<std::string, std::string>> libexec::execute(std::string command, std::vector<std::string> arguments)
+liberror::Result<std::pair<std::string, std::string>> libexec::execute(std::string command, std::vector<std::string> arguments, Mode mode)
 {
     std::array<int, 2> outPipe {};
     pipe(outPipe.data());
@@ -44,7 +46,20 @@ liberror::Result<std::pair<std::string, std::string>> libexec::execute(std::stri
     auto forkID = fork();
     if (forkID == 0)
     {
-        TRY(executed_command(outPipe, errPipe, command, arguments));
+        if (mode == libexec::Mode::DETACHED)
+        {
+            setsid();
+            auto subForkID = fork();
+            if (subForkID == 0)
+            {
+                TRY(executed_command(outPipe, errPipe, command, arguments));
+            }
+            std::exit(EXIT_SUCCESS);
+        }
+        else
+        {
+            TRY(executed_command(outPipe, errPipe, command, arguments));
+        }
     }
 
     close(outPipe.at(1));
@@ -95,7 +110,37 @@ liberror::Result<std::pair<std::string, std::string>> libexec::execute(std::stri
     return std::make_pair(out, err);
 }
 
-liberror::Result<std::pair<std::string, std::string>> libexec::execute(std::string command)
+liberror::Result<std::pair<std::string, std::string>> libexec::execute(std::string command, Mode mode)
 {
-    return execute(command, {});
+    return execute(command, std::vector<std::string>{}, mode);
+}
+
+liberror::Result<void> libexec::execute(std::string command, std::filesystem::path output, Mode mode)
+{
+    auto [out, err] = TRY(execute(command, mode));
+
+    if (!err.empty())
+    {
+        return liberror::make_error(err);
+    }
+
+    std::ofstream stream(output);
+    stream << out;
+
+    return {};
+}
+
+liberror::Result<void> libexec::execute(std::string command, std::vector<std::string> arguments, std::filesystem::path output, Mode mode)
+{
+    auto [out, err] = TRY(execute(command, arguments, mode));
+
+    if (!err.empty())
+    {
+        return liberror::make_error(err);
+    }
+
+    std::ofstream stream(output);
+    stream << out;
+
+    return {};
 }
