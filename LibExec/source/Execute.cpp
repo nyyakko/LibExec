@@ -46,7 +46,7 @@ liberror::Result<std::pair<std::string, std::string>> libexec::execute(std::stri
     auto forkID = fork();
     if (forkID == 0)
     {
-        if (mode == libexec::Mode::DETACHED)
+        if (mode == Mode::DETACHED)
         {
             setsid();
             auto subForkID = fork();
@@ -105,7 +105,10 @@ liberror::Result<std::pair<std::string, std::string>> libexec::execute(std::stri
     close(outPipe.at(0));
     close(errPipe.at(0));
 
-    waitpid(forkID, nullptr, 0);
+    if (mode == Mode::ATTACHED)
+    {
+        waitpid(forkID, nullptr, 0);
+    }
 
     return std::make_pair(out, err);
 }
