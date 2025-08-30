@@ -5,16 +5,17 @@
 #include <fcntl.h>
 #include <poll.h>
 #include <sys/wait.h>
-
-#include <algorithm>
 #include <unistd.h>
 
-static liberror::Result<void> executed_command(std::array<int, 2> const& stdoutPipe, std::array<int, 2> const& stderrPipe, std::string command, std::vector<std::string> arguments)
+#include <algorithm>
+#include <span>
+
+static liberror::Result<void> executed_command(std::span<int> stdoutPipe, std::span<int> stderrPipe, std::string command, std::vector<std::string> arguments)
 {
-    dup2(stdoutPipe.at(1), STDOUT_FILENO);
+    dup2(stdoutPipe[1], STDOUT_FILENO);
     std::ranges::for_each(stdoutPipe, close);
 
-    dup2(stderrPipe.at(1), STDERR_FILENO);
+    dup2(stderrPipe[1], STDERR_FILENO);
     std::ranges::for_each(stderrPipe, close);
 
     auto devNull = open("/dev/null", O_RDONLY);
@@ -31,25 +32,44 @@ static liberror::Result<void> executed_command(std::array<int, 2> const& stdoutP
 
     execvp(command.data(), argumentsData.data());
 
-    return liberror::make_error(strerror(errno));
+    return liberror::make_error("{}", strerror(errno));
 }
 
 liberror::Result<std::pair<std::string, std::string>> libexec::execute(std::string const& command, std::vector<std::string> const& arguments, Mode mode)
 {
     std::array<int, 2> stdoutPipe {};
-    pipe(stdoutPipe.data());
+
+    if (pipe(stdoutPipe.data()) == -1)
+    {
+        return liberror::make_error("{}", strerror(errno));
+    }
 
     std::array<int, 2> stderrPipe {};
-    pipe(stderrPipe.data());
 
-    auto forkId = fork();
-    if (forkId == 0)
+    if (pipe(stderrPipe.data()) == -1)
+    {
+        return liberror::make_error("{}", strerror(errno));
+    }
+
+    auto pid1 = fork();
+    if (pid1 == -1)
+    {
+        return liberror::make_error("{}", strerror(errno));
+    }
+
+    if (pid1 == 0)
     {
         if (mode == Mode::DETACHED)
         {
             setsid();
-            auto innerForkId = fork();
-            if (innerForkId == 0)
+
+            auto pid2 = fork();
+            if (pid2 == -1)
+            {
+                return liberror::make_error("{}", strerror(errno));
+            }
+
+            if (pid2 == 0)
             {
                 TRY(executed_command(stdoutPipe, stderrPipe, command, arguments));
             }
@@ -107,7 +127,7 @@ liberror::Result<std::pair<std::string, std::string>> libexec::execute(std::stri
     close(stdoutPipe.at(0));
     close(stderrPipe.at(0));
 
-    waitpid(forkId, nullptr, 0);
+    waitpid(pid1, nullptr, 0);
 
     return std::pair { out, err };
 }
