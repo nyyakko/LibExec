@@ -7,7 +7,7 @@
 
 namespace libexec {
 
-enum class Mode {
+enum class Mode : std::uint8_t {
     ATTACHED,
     DETACHED
 };
