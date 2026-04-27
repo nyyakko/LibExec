@@ -19,6 +19,8 @@ function(enable_clang_tidy PROJECT)
     endif()
 
     set(CLANG_TIDY_OPTIONS ${CLANGTIDY}
+        --checks=-*,bugprone*,clang-analyzer*,performance*
+
         --extra-arg=-Wno-unknown-warning-option
         --extra-arg=-Wno-ignored-optimization-argument
         --extra-arg=-Wno-unused-command-line-argument
